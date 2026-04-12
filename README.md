@@ -1,7 +1,7 @@
 # Project-Perov-Karpeev
 Кафе ромашка
 # Состав группы
-Перов Станислав (github: conte-ananas), Фёдор Карпеев (github:)
+Перов Станислав (github: conte-ananas), Фёдор Карпеев (github:fedosikpro2000)
 # Идея компании
 
 # Разделение обязанностей
