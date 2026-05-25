@@ -5,106 +5,98 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-def main(link):
-    try:
-        splitted = re.split(r'-|_|/', link)
-        if len(splitted) >= 2:
-            owner_id = int(splitted[-2])
-            post_id = int(splitted[-1])
-        else:
-            raise ValueError("Нет такой ссылки")
-    except Exception as e:
-        data = generate_test_data()
-        df = pd.DataFrame(data)
-        plot_graphics(df)
-        return
+def main(links):
+    all_data = []
 
-    token = ""
+    for link in links:
+        try:
+            splitted = re.split(r'-|_|/', link)
+            if len(splitted) >= 2:
+                owner_id = int(splitted[-2])
+                post_id = int(splitted[-1])
+            else:
+                raise ValueError("Нет такой ссылки")
+        except Exception as e:
+            continue
 
-    try:
-        vk_session = vk_api.VkApi(token=token)
-        vk = vk_session.get_api()
-    except Exception as e:
-        data = generate_test_data()
-        df = pd.DataFrame(data)
-        plot_graphics(df)
-        return
+        token = ""
 
-    all_user_ids = []
-    offset = 0
-    count = 100
+        try:
+            vk_session = vk_api.VkApi(token=token)
+            vk = vk_session.get_api()
+        except Exception as e:
+            continue
 
-    try:
-        while True:
+        all_user_ids = []
+        offset = 0
+        count = 100
+
+        try:
+            while True:
+                try:
+                    comments = vk.wall.getComments(
+                        owner_id=owner_id,
+                        post_id=post_id,
+                        count=count,
+                        offset=offset,
+                        need_likes=0
+                    )
+                except Exception as e:
+                    break
+                if not comments['items']:
+                    break
+                for item in comments['items']:
+                    all_user_ids.append(item['from_id'])
+                offset += count
+        except Exception as e:
+            pass
+
+        user_ids = list(set(all_user_ids))
+
+        if not user_ids:
+            continue
+
+        current_year = datetime.now().year
+
+        for user_id in user_ids:
             try:
-                comments = vk.wall.getComments(
-                    owner_id=owner_id,
-                    post_id=post_id,
-                    count=count,
-                    offset=offset,
-                    need_likes=0
+                user_info = vk.users.get(
+                    user_ids=user_id,
+                    fields="bdate,sex"
                 )
             except Exception as e:
-                break
-            if not comments['items']:
-                break
-            for item in comments['items']:
-                all_user_ids.append(item['from_id'])
-            offset += count
-    except Exception as e:
-        print(f"Невозможно собрать коментарии, виновник ----> {e}")
+                continue
 
-    user_ids = list(set(all_user_ids))
+            if not user_info:
+                continue
 
-    if not user_ids:
-        data = generate_test_data()
-        df = pd.DataFrame(data)
-        plot_graphics(df)
-        return
+            user = user_info[0]
+            first_name = user.get("first_name", "Неизвестный")
+            sex_test = user.get("sex", 0)
+            if sex_test == 1:
+                sex = "Женский"
+            elif sex_test == 2:
+                sex = "Мужской"
+            else:
+                sex = "None"
 
-    current_year = datetime.now().year
-    data = []
-    for user_id in user_ids:
-        try:
-            user_info = vk.users.get(
-                user_ids=user_id,
-                fields="bdate,sex"
-            )
-        except Exception as e:
-            print(f"{user_id} не дает о себе инфу {e}")
-            continue
+            bdate = user.get("bdate", "")
+            if bdate and len(bdate.split(".")) == 3:
+                birth_year = int(bdate.split(".")[2])
+                age = current_year - birth_year
+            else:
+                age = None
 
-        if not user_info:
-            print(f" {user_id} такого чувака не существует")
-            continue
+            all_data.append({
+                "first_name": first_name,
+                "sex": sex,
+                "age": age
+            })
 
-        user = user_info[0]
-        first_name = user.get("first_name", "Неизвестный")
-        sex_test = user.get("sex", 0)
-        if sex_test == 1:
-            sex = "Женский"
-        elif sex_test == 2:
-            sex = "Мужской"
-        else:
-            sex = "None"
+    if len(all_data) == 0:
+        all_data = generate_test_data()
 
-        bdate = user.get("bdate", "")
-        if bdate and len(bdate.split(".")) == 3:
-            birth_year = int(bdate.split(".")[2])
-            age = current_year - birth_year
-        else:
-            age = None
-
-        data.append({
-            "first_name": first_name,
-            "sex": sex,
-            "age": age
-        })
-
-    if len(data) == 0:
-        data = generate_test_data()
-
-    df = pd.DataFrame(data)
+    df = pd.DataFrame(all_data)
     plot_graphics(df)
 
 
@@ -199,6 +191,7 @@ def generate_test_data():
     ]
     return test_data
 
+
 def plot_graphics(df):
     df_with_age = df[df["age"].notna()]
 
@@ -236,4 +229,5 @@ def plot_graphics(df):
     plt.tight_layout()
     plt.show()
 
-main('https://vk.com/topic-143401119_48482985')
+
+main(['https://vk.com/topic-128924967_37538499', 'https://vk.com/topic-143401119_48482985', 'https://vk.com/topic-113023160_49055027'])
